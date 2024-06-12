@@ -3,6 +3,9 @@ django
 djangorestframework
 python-dotenv
 
+# Image processing
+pillow
+
 # Documentation
 drf-yasg
 drf-yasg[validation]

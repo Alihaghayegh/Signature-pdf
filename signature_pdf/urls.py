@@ -37,8 +37,7 @@ schema_view = get_schema_view(
 urlpatterns = [
     # Main Routes
     path('admin/', admin.site.urls),
-    path('', include("personal_info.urls")),
-    path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
+    path('personal/', include("personal_info.urls")),
     # Document Routes
     path('swagger<format>/', schema_view.without_ui(cache_timeout=0),
          name='schema-json'),

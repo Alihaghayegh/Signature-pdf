@@ -3,11 +3,12 @@ from rest_framework import routers
 
 from . import views
 
-namespace = "UserInfo"
+app_name = "UserInfo"
 
-router = routers.DefaultRouter()
-router.register(r'users', views.UserViewSet)
 
 urlpatterns = [
-    path('' , include(router.urls)),
+    path('hello/' , views.hello_world),
+    path('user-list/' , views.users_list),
+    path('user/<int:id>' , views.user_view),
+    path('user/create' , views.user_create),
 ]

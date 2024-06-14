@@ -115,6 +115,6 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-SWAGGER_SETTINGS = {
-    'DEFAULT_INFO': 'personal_info.urls.openapi_info',
-}
+# SWAGGER_SETTINGS = {
+#     'DEFAULT_INFO': 'personal_info.urls.openapi_info',
+# }

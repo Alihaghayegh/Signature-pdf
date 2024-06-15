@@ -9,3 +9,7 @@ pillow
 # Documentation
 drf-yasg
 drf-yasg[validation]
+
+# Authentication
+djangorestframework-simplejwt
+djangorestframework-simplejwt[crypto]

@@ -1,10 +1,10 @@
-from rest_framework.parsers import MultiPartParser, FormParser
+from django.http import HttpResponse
 from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
-from rest_framework import status
-from rest_framework import permissions
-from drf_yasg import openapi
+from rest_framework import status, permissions
 from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
 from .models import UserInfo
 from .serializers import UserSerializerForDB, UserSerializerForResponse
@@ -16,25 +16,26 @@ def hello_world(request):
         return Response({"message": "Got some data!", "data": request.data})
     return Response({"message": "Hello, world!"})
 
-@permission_classes[permissions.IsAdminUser, permissions.IsAuthenticated]
+
 @api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated, permissions.IsAdminUser])
 def users_list(request):
     queryset = UserInfo.objects.all()
     serializer = UserSerializerForResponse(queryset, many=True)
     return Response(serializer.data)
 
-@permission_classes[permissions.IsAdminUser, permissions.IsAuthenticated]
+
 @api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
 def user_view(request, pk):
     try:
         user_info = UserInfo.objects.get(pk=pk)
     except UserInfo.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-
+        return HttpResponse(status=404)
     serializer = UserSerializerForResponse(user_info)
     return Response(serializer.data)
 
-@permission_classes[permissions.AllowAny]
+
 @swagger_auto_schema(
     method='post',
     request_body=openapi.Schema(
@@ -51,8 +52,9 @@ def user_view(request, pk):
     ),
     responses={200: "Success"}
 )
+@api_view(['POST'])
 @parser_classes([MultiPartParser, FormParser])
-@api_view(["POST"])
+@permission_classes([permissions.AllowAny])
 def user_create(request):
     if request.method == 'POST':
         serializer = UserSerializerForDB(data=request.data)

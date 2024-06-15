@@ -1,21 +1,23 @@
-from .models import UserInfo
 from rest_framework import serializers
-
+from .models import UserInfo
+from django.contrib.auth.models import User
 
 class UserSerializerForDB(serializers.ModelSerializer):
-    '''
-    This class is for getting user info and credetials for saving info database
-    '''
     class Meta:
         model = UserInfo
         fields = ['username', 'password', 'first_name', 'last_name', 'signature']
 
-
+    def create(self, validated_data):
+        user = UserInfo.objects.create_user(
+            username=validated_data['username'],
+            password=validated_data['password'],
+            first_name=validated_data['first_name'],
+            last_name=validated_data['last_name'],
+            signature=validated_data['signature']
+        )
+        return user
 
 class UserSerializerForResponse(serializers.ModelSerializer):
-    '''
-    This class is for returning user info and credentials in response
-    '''
     class Meta:
         model = UserInfo
-        fields = ['first_name', 'last_name', 'signature']
+        fields = ['username', 'first_name', 'last_name', 'signature']

@@ -7,7 +7,7 @@ class UserInfo(User):
     Model for taking user info and signature and save it to db
     '''
     signature = models.ImageField(upload_to="signatures")
-    time = models.DateTimeField()
+    time = models.DateTimeField(auto_now_add=True)
     
 
     def __str__(self):

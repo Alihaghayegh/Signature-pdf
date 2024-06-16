@@ -20,7 +20,7 @@ django-celery-beat
 django-celery-results
 celery[redis]
 
-# PDF
+# PDF Stuff
 reportlab
 
 # Shamsi Date 
@@ -28,3 +28,6 @@ khayyam
 
 # Redis
 django-redis
+
+# Reading Persian Date and Fonts
+rtl

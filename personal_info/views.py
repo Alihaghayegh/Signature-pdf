@@ -1,11 +1,9 @@
-import os
 from django.http import HttpResponse
 from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
 
 from personal_info.tasks import create_pdf
 

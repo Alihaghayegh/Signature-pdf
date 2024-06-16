@@ -13,3 +13,19 @@ drf-yasg[validation]
 # Authentication
 djangorestframework-simplejwt
 djangorestframework-simplejwt[crypto]
+
+# Celery and Background tasks
+celery
+django-celery-beat
+django-celery-results
+celery[redis]
+
+# PDF
+pdfkit
+wkhtmltopdf
+
+# Shamsi Date 
+hijri_converter
+
+# Redis
+django-redis

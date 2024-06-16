@@ -1,3 +1,4 @@
+import os
 from django.http import HttpResponse
 from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -5,6 +6,8 @@ from rest_framework.response import Response
 from rest_framework import status, permissions
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+
+from personal_info.tasks import create_pdf
 
 from .models import UserInfo
 from .serializers import UserSerializerForDB, UserSerializerForResponse
@@ -62,3 +65,29 @@ def user_create(request):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def generate_pdf(request):
+    user = request.user
+    user_info = UserInfo.objects.get(id=user.id)
+    
+    if not user_info.signature:
+        return Response({"error": "Signature not found"}, status=status.HTTP_400_BAD_REQUEST)
+    
+    result = create_pdf.delay(user_info.id)
+    return Response({"task_id": result.id}, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def check_pdf_status(request, task_id):
+    from celery.result import AsyncResult
+    result = AsyncResult(task_id)
+    
+    if result.state == 'PENDING':
+        return Response({"status": "Pending"}, status=status.HTTP_202_ACCEPTED)
+    elif result.state == 'SUCCESS':
+        return Response({"status": "Completed", "pdf_url": result.get()}, status=status.HTTP_200_OK)
+    else:
+        return Response({"status": "Failed"}, status=status.HTTP_400_BAD_REQUEST)

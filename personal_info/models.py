@@ -16,3 +16,19 @@ class UserInfo(User):
     class Meta:
         ordering = ['time']
         verbose_name_plural = "User info"
+
+
+class PDFFile(models.Model):
+    '''
+    This model is for saving each users own pdf file
+    '''
+    user = models.OneToOneField(UserInfo, on_delete=models.CASCADE)
+    file = models.FileField(upload_to='pdfs/', null=True, blank=True)
+    status = models.CharField(max_length=20, default='pending')  # pending, in_progress, done, failed
+    error_message = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.status}"
+    
+
+    

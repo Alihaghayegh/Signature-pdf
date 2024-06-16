@@ -56,6 +56,20 @@ def user_create(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(['PUT'])
+@parser_classes([MultiPartParser, FormParser])
+@permission_classes([permissions.IsAuthenticated])
+def user_modify(request):
+    if request.method == 'PUT':
+        user = request.user
+        user_info = UserInfo.objects.get(id=user.id)
+        serializer = UserSerializerForDB(user_info, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def generate_pdf(request):

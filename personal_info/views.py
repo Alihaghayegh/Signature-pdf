@@ -63,9 +63,11 @@ def user_modify(request):
     if request.method == 'PUT':
         user = request.user
         user_info = UserInfo.objects.get(id=user.id)
+        pdf_file = PDFFile.objects.get(user=user)
         serializer = UserSerializerForDB(user_info, data=request.data)
         if serializer.is_valid():
             serializer.save()
+            pdf_file.status == 'pending'
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

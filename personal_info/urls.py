@@ -16,5 +16,5 @@ urlpatterns = [
     path('users/<int:pk>/', views.user_view, name='user-view'),
     path('api/', include('rest_framework.urls')),
     path('users/generate_pdf/', views.generate_pdf, name='generate_pdf'),
-    path('users/check_pdf_status/<str:task_id>/', views.check_pdf_status, name='check_pdf_status')
+    path('users/check_pdf_status/', views.get_task_status, name='check_pdf_status')
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

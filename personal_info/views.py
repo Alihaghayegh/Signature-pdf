@@ -9,7 +9,7 @@ from drf_yasg import openapi
 
 from personal_info.tasks import create_pdf
 
-from .models import UserInfo
+from .models import UserInfo, PDFFile
 from .serializers import UserSerializerForDB, UserSerializerForResponse
 
 
@@ -76,18 +76,26 @@ def generate_pdf(request):
     if not user_info.signature:
         return Response({"error": "Signature not found"}, status=status.HTTP_400_BAD_REQUEST)
     
-    result = create_pdf.delay(user_info.id)
-    return Response({"task_id": result.id}, status=status.HTTP_200_OK)
+    create_pdf.delay(user_info.id)
+    # create_pdf(user_info.id)
+    return Response({"status": "PDF creation task started"}, status=status.HTTP_202_ACCEPTED)
+
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
-def check_pdf_status(request, task_id):
-    from celery.result import AsyncResult
-    result = AsyncResult(task_id)
-    
-    if result.state == 'PENDING':
-        return Response({"status": "Pending"}, status=status.HTTP_202_ACCEPTED)
-    elif result.state == 'SUCCESS':
-        return Response({"status": "Completed", "pdf_url": result.get()}, status=status.HTTP_200_OK)
-    else:
-        return Response({"status": "Failed"}, status=status.HTTP_400_BAD_REQUEST)
+def get_task_status(request):
+    user = request.user
+    try:
+        pdf_file = PDFFile.objects.get(user=user)
+        if pdf_file.status == 'done':
+            pdf_file.file.open('rb')
+            response = HttpResponse(pdf_file.file.read(), content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="{pdf_file.file.name}"'
+            pdf_file.file.close()
+            return response
+    except PDFFile.DoesNotExist:
+        return Response({"error": "No PDF creation task found for this user."}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+    return Response({"status": pdf_file.status, "error_message": pdf_file.error_message})

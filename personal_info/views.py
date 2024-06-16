@@ -73,11 +73,19 @@ def generate_pdf(request):
     user = request.user
     user_info = UserInfo.objects.get(id=user.id)
     
+    if PDFFile.objects.filter(user=user_info, status='done').exists():
+        pdf_file = PDFFile.objects.get(user=user)
+        if pdf_file.status == 'done':
+            pdf_file.file.open('rb')
+            response = HttpResponse(pdf_file.file.read(), content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename="{pdf_file.file.name}"'
+            pdf_file.file.close()
+            return response
+
     if not user_info.signature:
         return Response({"error": "Signature not found"}, status=status.HTTP_400_BAD_REQUEST)
     
     create_pdf.delay(user_info.id)
-    # create_pdf(user_info.id)
     return Response({"status": "PDF creation task started"}, status=status.HTTP_202_ACCEPTED)
 
 

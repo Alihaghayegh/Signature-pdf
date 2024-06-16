@@ -24,7 +24,7 @@ celery[redis]
 reportlab
 
 # Shamsi Date 
-hijri_converter
+khayyam
 
 # Redis
 django-redis

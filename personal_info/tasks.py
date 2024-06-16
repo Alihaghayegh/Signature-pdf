@@ -7,7 +7,8 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 from django.core.files.base import ContentFile
 from django.utils.timezone import now
-from hijri_converter import Gregorian
+import khayyam
+from rtl import rtl
 from .models import UserInfo, PDFFile
 from io import BytesIO
 import os
@@ -33,11 +34,12 @@ def create_pdf(user_id):
 
         # Convert date to Jalali
         now_date = now().date()
-        jalali_date = Gregorian(now_date.year, now_date.month, now_date.day)
-
+        jalali_date = khayyam.JalaliDate.today()
+        print(jalali_date)
+        
         # Write user info and date
-        c.drawString(100, 750, f"Name: {user_info.first_name} {user_info.last_name}")
-        c.drawString(100, 730, f"Date: {jalali_date}")
+        c.drawString(100, 750, rtl(f"نام: {user_info.first_name} {user_info.last_name})"))
+        c.drawString(100, 730, rtl(f"تاریخ: {str(jalali_date)}"))
 
         # Draw signature image
         c.drawImage(user_info.signature.path, 100, 600, width=200, height=100)

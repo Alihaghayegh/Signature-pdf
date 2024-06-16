@@ -41,18 +41,7 @@ def user_view(request, pk):
 
 @swagger_auto_schema(
     method='post',
-    request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={
-            'username': openapi.Schema(type=openapi.TYPE_STRING, description='Name of the user'),
-            'password': openapi.Schema(type=openapi.TYPE_STRING, description='Password'),
-            'first_name': openapi.Schema(type=openapi.TYPE_STRING, description='First name'),
-            'last_name': openapi.Schema(type=openapi.TYPE_STRING, description='Last name'),
-            'signature': openapi.Schema(type=openapi.TYPE_FILE, description='Signature file')
-        },
-        required=['username', 'password',
-                  'first_name', 'last_name', 'signature']
-    ),
+    required=['username', 'password', 'first_name', 'last_name', 'signature'],
     responses={200: "Success"}
 )
 @api_view(['POST'])

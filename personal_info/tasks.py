@@ -38,7 +38,7 @@ def create_pdf(user_id):
         print(jalali_date)
         
         # Write user info and date
-        c.drawString(100, 750, rtl(f"نام: {user_info.first_name} {user_info.last_name})"))
+        c.drawString(100, 750, rtl(f"نام: {user_info.first_name} {user_info.last_name}"))
         c.drawString(100, 730, rtl(f"تاریخ: {str(jalali_date)}"))
 
         # Draw signature image

@@ -5,11 +5,10 @@ from rest_framework.response import Response
 from rest_framework import status, permissions
 from drf_yasg.utils import swagger_auto_schema
 
-from .tasks import create_pdf
+from .tasks import create_pdf, validate_pdf
 from .utils import show_pdf
 from .models import UserInfo, PDFFile
 from .serializers import UserSerializerForDB, UserSerializerForResponse
-
 
 @api_view(['GET', 'POST'])
 def hello_world(request):
@@ -65,7 +64,7 @@ def user_modify(request):
         serializer = UserSerializerForDB(user_info, data=request.data)
         if serializer.is_valid():
             serializer.save()
-            pdf_file.status == 'pending'
+            pdf_file.status = 'pending'
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -76,11 +75,28 @@ def generate_pdf(request):
     user = request.user
     user_info = UserInfo.objects.get(id=user.id)
     
-    if PDFFile.objects.filter(user=user_info, status='done').exists():
-        return show_pdf(request)
+    pdf_file = PDFFile.objects.filter(user=user_info).first()
+    if pdf_file:
+        if pdf_file.status == 'done':
+            return show_pdf(user)
+        elif pdf_file.status == 'in_progress':
+            return Response({"error": "PDF creation is in progress"}, status=status.HTTP_202_ACCEPTED)
+        elif pdf_file.status == 'failed':
+            create_pdf.delay(user_info.id)
+            return Response({"error": "Previous PDF creation failed. Retrying..."}, status=status.HTTP_202_ACCEPTED)
+    else:
+        if not user_info.signature:
+            return Response({"error": "Signature not found"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        create_pdf_task = create_pdf.delay(user_info.id)
+        create_pdf_task.get()  # Wait for task to complete
+        
+        validate_pdf_task = validate_pdf.delay(user_info.id)
+        is_valid = validate_pdf_task.get()  # Wait for task to complete
+        
+        if is_valid:
+            return show_pdf(user)
+        else:
+            return Response({"error": "PDF creation failed"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    if not user_info.signature:
-        return Response({"error": "Signature not found"}, status=status.HTTP_400_BAD_REQUEST)
-    
-    create_pdf.delay(user_info.id)
-    return Response({"file": show_pdf(request)}, status=status.HTTP_202_ACCEPTED)
+    return HttpResponse(status=404)

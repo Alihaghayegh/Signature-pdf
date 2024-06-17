@@ -1,3 +1,33 @@
+# Main modules
 django
 djangorestframework
 python-dotenv
+
+# Image processing
+pillow
+
+# Documentation
+drf-yasg
+drf-yasg[validation]
+
+# Authentication
+djangorestframework-simplejwt
+djangorestframework-simplejwt[crypto]
+
+# Celery and Background tasks
+celery
+django-celery-beat
+django-celery-results
+celery[redis]
+
+# PDF Stuff
+reportlab
+
+# Shamsi Date 
+khayyam
+
+# Redis
+django-redis
+
+# Reading Persian Date and Fonts
+rtl

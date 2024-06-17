@@ -5,8 +5,8 @@ from rest_framework.response import Response
 from rest_framework import status, permissions
 from drf_yasg.utils import swagger_auto_schema
 
-from personal_info.tasks import create_pdf
-
+from .tasks import create_pdf
+from .utils import show_pdf
 from .models import UserInfo, PDFFile
 from .serializers import UserSerializerForDB, UserSerializerForResponse
 
@@ -77,36 +77,10 @@ def generate_pdf(request):
     user_info = UserInfo.objects.get(id=user.id)
     
     if PDFFile.objects.filter(user=user_info, status='done').exists():
-        pdf_file = PDFFile.objects.get(user=user)
-        if pdf_file.status == 'done':
-            pdf_file.file.open('rb')
-            response = HttpResponse(pdf_file.file.read(), content_type='application/pdf')
-            response['Content-Disposition'] = f'attachment; filename="{pdf_file.file.name}"'
-            pdf_file.file.close()
-            return response
+        return show_pdf(request)
 
     if not user_info.signature:
         return Response({"error": "Signature not found"}, status=status.HTTP_400_BAD_REQUEST)
     
     create_pdf.delay(user_info.id)
-    return Response({"status": "PDF creation task started"}, status=status.HTTP_202_ACCEPTED)
-
-
-@api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
-def get_task_status(request):
-    user = request.user
-    try:
-        pdf_file = PDFFile.objects.get(user=user)
-        if pdf_file.status == 'done':
-            pdf_file.file.open('rb')
-            response = HttpResponse(pdf_file.file.read(), content_type='application/pdf')
-            response['Content-Disposition'] = f'attachment; filename="{pdf_file.file.name}"'
-            pdf_file.file.close()
-            return response
-    except PDFFile.DoesNotExist:
-        return Response({"error": "No PDF creation task found for this user."}, status=status.HTTP_404_NOT_FOUND)
-
-
-
-    return Response({"status": pdf_file.status, "error_message": pdf_file.error_message})
+    return Response({"file": show_pdf(request)}, status=status.HTTP_202_ACCEPTED)

@@ -12,12 +12,13 @@ from rtl import rtl
 from .models import UserInfo, PDFFile
 from io import BytesIO
 import os
+import PyPDF2
 
 @shared_task
 def create_pdf(user_id):
     try:
         user_info = UserInfo.objects.get(id=user_id)
-        pdf_file, created = PDFFile.objects.get_or_create(user=user_info)
+        pdf_file, _ = PDFFile.objects.get_or_create(user=user_info)
 
         # Set the status to in_progress
         pdf_file.status = 'in_progress'
@@ -28,14 +29,11 @@ def create_pdf(user_id):
 
         # Add Persian font
         font_path = os.path.join(os.path.dirname(__file__), 'fonts', 'Yekan.ttf')
-        print(font_path)
         pdfmetrics.registerFont(TTFont('Yekan', font_path))
         c.setFont('Yekan', 12)
 
         # Convert date to Jalali
-        now_date = now().date()
         jalali_date = khayyam.JalaliDate.today()
-        print(jalali_date)
         
         # Write user info and date
         c.drawString(100, 750, rtl(f"نام: {user_info.first_name} {user_info.last_name}"))
@@ -57,16 +55,57 @@ def create_pdf(user_id):
 
         return f"PDF created for {user_info.username}"
     except UserInfo.DoesNotExist:
-        # Update the status to failed with error message
         if pdf_file:
             pdf_file.status = 'failed'
             pdf_file.error_message = 'User not found'
             pdf_file.save()
         return 'User not found'
-
     except Exception as e:
         if pdf_file:
             pdf_file.status = 'failed'
             pdf_file.error_message = str(e)
             pdf_file.save()
         return str(e)
+
+@shared_task
+def verify_pdf(user_id):
+    try:
+        user_info = UserInfo.objects.get(id=user_id)
+        pdf_file = PDFFile.objects.get(user=user_info)
+
+        # Verify the PDF content
+        pdf_file.file.open('rb')
+        reader = PyPDF2.PdfFileReader(pdf_file.file)
+        content = ""
+        for page_num in range(reader.numPages):
+            content += reader.getPage(page_num).extract_text()
+        pdf_file.file.close()
+
+        jalali_date = khayyam.JalaliDate.today()
+        expected_name = f"نام: {user_info.first_name} {user_info.last_name}"
+        expected_date = f"تاریخ: {str(jalali_date)}"
+        
+        if expected_name in content and expected_date in content:
+            # Content is correct
+            pdf_file.status = 'verified'
+            pdf_file.save()
+            return True
+        else:
+            # Content is incorrect
+            pdf_file.status = 'failed'
+            pdf_file.error_message = 'Content verification failed'
+            pdf_file.save()
+            create_pdf.delay(user_id)  # Recreate the PDF
+            return False
+    except UserInfo.DoesNotExist:
+        if pdf_file:
+            pdf_file.status = 'failed'
+            pdf_file.error_message = 'User not found'
+            pdf_file.save()
+        return False
+    except Exception as e:
+        if pdf_file:
+            pdf_file.status = 'failed'
+            pdf_file.error_message = str(e)
+            pdf_file.save()
+        return False

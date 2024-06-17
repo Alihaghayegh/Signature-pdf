@@ -22,6 +22,7 @@ celery[redis]
 
 # PDF Stuff
 reportlab
+pypdf2
 
 # Shamsi Date 
 khayyam

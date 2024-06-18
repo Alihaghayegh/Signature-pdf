@@ -1,3 +1,4 @@
+import time
 from django.http import HttpResponse
 from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -9,6 +10,7 @@ from .tasks import create_pdf, validate_pdf
 from .utils import show_pdf
 from .models import UserInfo, PDFFile
 from .serializers import UserSerializerForDB, UserSerializerForResponse
+
 
 @api_view(['GET', 'POST'])
 def hello_world(request):
@@ -68,13 +70,47 @@ def user_modify(request):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+# Long polling Version
+# @api_view(['POST'])
+# @permission_classes([permissions.IsAuthenticated])
+# def generate_pdf(request):
+#     user = request.user
+#     user_info = UserInfo.objects.get(id=user.id)
 
+#     pdf_file = PDFFile.objects.filter(user=user_info).first()
+#     if pdf_file:
+#         if pdf_file.status == 'done':
+#             return show_pdf(user)
+#         elif pdf_file.status == 'in_progress':
+#             return Response({"error": "PDF creation is in progress"}, status=status.HTTP_202_ACCEPTED)
+#         elif pdf_file.status == 'failed':
+#             create_pdf.delay(user_info.id)
+#             return Response({"error": "Previous PDF creation failed. Retrying..."}, status=status.HTTP_202_ACCEPTED)
+#     else:
+#         if not user_info.signature:
+#             return Response({"error": "Signature not found"}, status=status.HTTP_400_BAD_REQUEST)
+
+#         create_pdf_task = create_pdf.delay(user_info.id)
+#         create_pdf_task.get()  # Wait for task to complete
+
+#         validate_pdf_task = validate_pdf.delay(user_info.id)
+#         is_valid = validate_pdf_task.get()  # Wait for task to complete
+
+#         if is_valid:
+#             return show_pdf(user)
+#         else:
+#             return Response({"error": "PDF creation failed"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+#     return HttpResponse(status=404)
+
+
+# Short polling Version
 @api_view(['POST'])
 @permission_classes([permissions.IsAuthenticated])
 def generate_pdf(request):
     user = request.user
     user_info = UserInfo.objects.get(id=user.id)
-    
+
     pdf_file = PDFFile.objects.filter(user=user_info).first()
     if pdf_file:
         if pdf_file.status == 'done':
@@ -87,16 +123,14 @@ def generate_pdf(request):
     else:
         if not user_info.signature:
             return Response({"error": "Signature not found"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        create_pdf_task = create_pdf.delay(user_info.id)
-        create_pdf_task.get()  # Wait for task to complete
-        
-        validate_pdf_task = validate_pdf.delay(user_info.id)
-        is_valid = validate_pdf_task.get()  # Wait for task to complete
-        
-        if is_valid:
-            return show_pdf(user)
-        else:
-            return Response({"error": "PDF creation failed"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    return HttpResponse(status=404)
+        create_pdf.delay(user_info.id)
+        for _ in range(10):
+            time.sleep(1)
+            pdf_file = PDFFile.objects.filter(user=user_info).first()
+            if pdf_file.status == 'done':
+                # Validate the PDF file
+                validate_pdf.delay(user_info.id)
+                if pdf_file.status == 'verified':
+                    return show_pdf(user)
+        return Response({"status": "PDF creation started, please check status later"}, status=status.HTTP_202_ACCEPTED)

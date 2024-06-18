@@ -1,10 +1,9 @@
-#! coding: utf-8
+# #! coding: utf-8
 
 import os
 from io import BytesIO
 from django.core.files.base import ContentFile
 from django.utils.timezone import now
-
 from celery import shared_task
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
@@ -12,18 +11,23 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 from rtl import rtl
 import khayyam
-
+import pdfplumber
 from .models import UserInfo, PDFFile
+import redis
+
+redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 @shared_task
 def create_pdf(user_id):
     try:
         user_info = UserInfo.objects.get(id=user_id)
-        pdf_file, _ = PDFFile.objects.get_or_create(user=user_info)
+        pdf_file, created = PDFFile.objects.get_or_create(user=user_info)
 
         # Set the status to in_progress
         pdf_file.status = 'in_progress'
         pdf_file.save()
+        redis_client.set(f'pdf_status_{user_id}', 'in_progress')
+
 
         buffer = BytesIO()
         c = canvas.Canvas(buffer, pagesize=letter)
@@ -50,63 +54,59 @@ def create_pdf(user_id):
         pdf_file.file.save(f'{user_info.username}.pdf', ContentFile(buffer.read()))
         buffer.close()
 
-        # Update the status to done
-        return validate_pdf(user_id)
+        # Call validation task
+        validate_pdf.delay(user_info.id)
     except UserInfo.DoesNotExist:
-        if pdf_file:
-            pdf_file.status = 'failed'
-            pdf_file.error_message = 'User not found'
-            pdf_file.save()
+        redis_client.set(f'pdf_status_{user_id}', 'failed')
     except Exception as e:
-        if pdf_file:
-            pdf_file.status = 'failed'
-            pdf_file.error_message = str(e)
-            pdf_file.save()
+        redis_client.set(f'pdf_status_{user_id}', 'failed')
 
 @shared_task
 def validate_pdf(user_id):
-    from .models import PDFFile  # Import inside the function to avoid circular import
-    import pdfplumber
-    from rtl import rtl
-    import khayyam
-
+    count_of_fails = 0
+    user_info = UserInfo.objects.get(id=user_id)
+    pdf_file = PDFFile.objects.get(user=user_info)
     try:
         user_info = UserInfo.objects.get(id=user_id)
         pdf_file = PDFFile.objects.get(user=user_info)
         pdf_file.file.open('rb')
+
         with pdfplumber.open(pdf_file.file) as pdf:
             content = ""
             for page in pdf.pages:
                 content += page.extract_text()
-                # Checking image in pdf
-                images = page.images
-                if images:
-                    content += "image_found"
-        
+ 
         jalali_date = khayyam.JalaliDate.today()
         expected_name = rtl(f"نام: {user_info.first_name} {user_info.last_name}")
         expected_date = rtl(f"تاریخ: {str(jalali_date)}")
-        
+        images = page.images
+        if images:
+            content += "image_found"
+
+        jalali_date = khayyam.JalaliDate.today()
+        expected_name = rtl(f"نام: {user_info.first_name} {
+                            user_info.last_name}")
+        expected_date = rtl(f"تاریخ: {str(jalali_date)}")
+
         if expected_name in content and expected_date in content and "image_found" in content:
-            pdf_file.status = 'done'
+            pdf_file.status = 'verified'
+            redis_client.set(f'pdf_status_{user_id}', 'verified')
+            redis_client.set('count_of_fails', f'{count_of_fails}')
             pdf_file.save()
-            return True
         else:
-            pdf_file.status = 'failed'
-            pdf_file.error_message = 'Content verification failed'
-            pdf_file.save()
-            return False
-    except UserInfo.DoesNotExist:
-        if pdf_file:
-            pdf_file.status = 'failed'
-            pdf_file.error_message = 'User not found'
-            pdf_file.save()
-        return False
+            fails = redis_client.get('count_of_fails')
+            while fails < 5 :
+                count_of_fails += 1
+                pdf_file.status = 'failed'
+                pdf_file.error_message = 'Content verification failed'
+                pdf_file.save()
+                redis_client.set(f'pdf_status_{user_id}', 'failed')
+                redis_client.set('count_of_fails', f'{count_of_fails}')
+                create_pdf.delay(user_info.id)
+            redis_client.set(f'pdf_status_{user_id}', 'failed')
+
     except Exception as e:
-        if pdf_file:
-            pdf_file.status = 'failed'
-            pdf_file.error_message = str(e)
-            pdf_file.save()
-        return False
-    finally:
-        pdf_file.file.close()
+        pdf_file.status = 'failed'
+        pdf_file.error_message = str(e)
+        pdf_file.save()
+        redis_client.set(f'pdf_status_{user_id}', 'failed')

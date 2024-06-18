@@ -92,12 +92,11 @@ def validate_pdf(user_id):
             fails = redis_client.get('count_of_fails')
             while fails < 5 :
                 count_of_fails += 1
-                pdf_file.status = 'failed'
-                pdf_file.error_message = 'Content verification failed'
-                pdf_file.save()
-                redis_client.set(f'pdf_status_{user_id}', 'failed')
                 redis_client.set('count_of_fails', f'{count_of_fails}')
                 create_pdf.delay(user_info.id)
+            pdf_file.status = 'failed'
+            pdf_file.error_message = 'Content verification failed'
+            pdf_file.save()
             redis_client.set(f'pdf_status_{user_id}', 'failed')
 
     except Exception as e:

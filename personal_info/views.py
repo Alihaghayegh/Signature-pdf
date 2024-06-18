@@ -126,7 +126,7 @@ def generate_pdf(request):
 
         create_pdf.delay(user_info.id)
         for _ in range(5):
-            time.sleep(1)
+            time.sleep(0.5)
             pdf_file = PDFFile.objects.filter(user=user_info).first()
             if pdf_file.status == 'done':
                 # Validate the PDF file

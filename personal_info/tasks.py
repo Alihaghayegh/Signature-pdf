@@ -83,11 +83,6 @@ def validate_pdf(user_id):
         if images:
             content += "image_found"
 
-        jalali_date = khayyam.JalaliDate.today()
-        expected_name = rtl(f"نام: {user_info.first_name} {
-                            user_info.last_name}")
-        expected_date = rtl(f"تاریخ: {str(jalali_date)}")
-
         if expected_name in content and expected_date in content and "image_found" in content:
             pdf_file.status = 'verified'
             redis_client.set(f'pdf_status_{user_id}', 'verified')

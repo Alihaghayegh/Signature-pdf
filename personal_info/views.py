@@ -125,7 +125,7 @@ def generate_pdf(request):
             return Response({"error": "Signature not found"}, status=status.HTTP_400_BAD_REQUEST)
 
         create_pdf.delay(user_info.id)
-        for _ in range(10):
+        for _ in range(5):
             time.sleep(1)
             pdf_file = PDFFile.objects.filter(user=user_info).first()
             if pdf_file.status == 'done':

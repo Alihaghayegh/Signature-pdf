@@ -22,6 +22,10 @@ celery[redis]
 
 # PDF Stuff
 reportlab
+<<<<<<< HEAD
+=======
+pdfplumber
+>>>>>>> dev
 
 # Shamsi Date 
 khayyam
